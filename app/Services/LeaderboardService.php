@@ -75,13 +75,18 @@ class LeaderboardService
 
     public function getUserRank(string $slug, int $userId, string $period = 'alltime'): ?object
     {
-        return $this->scores->userRank($slug, $userId, $period);
+        return Cache::remember(
+            $this->rankCacheKey($slug, $period, $userId),
+            self::CACHE_TTL_SECONDS,
+            fn () => $this->scores->userRank($slug, $userId, $period),
+        );
     }
 
     public function invalidate(string $slug, ?string $period = null): void
     {
         foreach ($period === null ? LeaderboardPeriod::values() : [$period] as $cachePeriod) {
             Cache::forget($this->cacheKey($slug, $cachePeriod));
+            $this->bumpRankCacheVersion($slug, $cachePeriod);
         }
     }
 
@@ -93,5 +98,28 @@ class LeaderboardService
     private function lockKey(string $slug, string $period): string
     {
         return "leaderboard-building.{$slug}.{$period}";
+    }
+
+    private function rankCacheKey(string $slug, string $period, int $userId): string
+    {
+        return "leaderboard-rank.{$slug}.{$period}.v{$this->rankCacheVersion($slug, $period)}.{$userId}";
+    }
+
+    private function rankCacheVersion(string $slug, string $period): int
+    {
+        return (int) Cache::get($this->rankCacheVersionKey($slug, $period), 1);
+    }
+
+    private function bumpRankCacheVersion(string $slug, string $period): void
+    {
+        Cache::forever(
+            $this->rankCacheVersionKey($slug, $period),
+            $this->rankCacheVersion($slug, $period) + 1,
+        );
+    }
+
+    private function rankCacheVersionKey(string $slug, string $period): string
+    {
+        return "leaderboard-rank-version.{$slug}.{$period}";
     }
 }

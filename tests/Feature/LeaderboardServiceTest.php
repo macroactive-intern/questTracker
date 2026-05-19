@@ -137,3 +137,34 @@ it('gets user ranks through the score repository and can invalidate one period',
 
     Carbon::setTestNow();
 });
+
+it('caches user ranks and refreshes them when leaderboard scores change', function (): void {
+    Cache::flush();
+    Carbon::setTestNow('2026-05-20 12:00:00');
+
+    $service = app(LeaderboardService::class);
+    $player = User::factory()->create();
+    $leader = User::factory()->create();
+
+    $service->submit([
+        'user_id' => $player->id,
+        'game_slug' => 'arcade',
+        'score' => 600,
+        'source' => 'manual',
+        'achieved_at' => now(),
+    ]);
+
+    expect($service->getUserRank('arcade', $player->id)->rank)->toBe(1);
+
+    $service->submit([
+        'user_id' => $leader->id,
+        'game_slug' => 'arcade',
+        'score' => 900,
+        'source' => 'manual',
+        'achieved_at' => now(),
+    ]);
+
+    expect($service->getUserRank('arcade', $player->id)->rank)->toBe(2);
+
+    Carbon::setTestNow();
+});
