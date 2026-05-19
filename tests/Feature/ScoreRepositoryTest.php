@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\LeaderboardSnapshot;
 use App\Models\User;
 use App\Repositories\ScoreRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -93,7 +92,7 @@ it('applies daily weekly and alltime leaderboard windows', function (): void {
     Carbon::setTestNow();
 });
 
-it('lists distinct game slugs and prunes old snapshots', function (): void {
+it('lists distinct game slugs', function (): void {
     Carbon::setTestNow('2026-05-20 12:00:00');
 
     $repository = app(ScoreRepository::class);
@@ -109,30 +108,7 @@ it('lists distinct game slugs and prunes old snapshots', function (): void {
         ]);
     }
 
-    LeaderboardSnapshot::query()->create([
-        'game_slug' => 'maze',
-        'period' => 'daily',
-        'snapshot_date' => now()->subDays(91)->toDateString(),
-        'data' => [],
-    ]);
-
-    LeaderboardSnapshot::query()->create([
-        'game_slug' => 'maze',
-        'period' => 'weekly',
-        'snapshot_date' => now()->subDays(731)->toDateString(),
-        'data' => [],
-    ]);
-
-    LeaderboardSnapshot::query()->create([
-        'game_slug' => 'maze',
-        'period' => 'weekly',
-        'snapshot_date' => now()->subDays(30)->toDateString(),
-        'data' => [],
-    ]);
-
-    expect($repository->distinctGameSlugs()->all())->toBe(['maze', 'speed-run'])
-        ->and($repository->pruneOldSnapshots())->toBe(2)
-        ->and(LeaderboardSnapshot::query()->count())->toBe(1);
+    expect($repository->distinctGameSlugs()->all())->toBe(['maze', 'speed-run']);
 
     Carbon::setTestNow();
 });

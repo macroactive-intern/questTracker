@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\LeaderboardSnapshot;
+use App\Repositories\LeaderboardSnapshotRepository;
 use App\Repositories\ScoreRepository;
 use App\Services\LeaderboardService;
 use Illuminate\Console\Command;
@@ -27,6 +27,7 @@ class ArchiveLeaderboard extends Command
     public function __construct(
         private readonly LeaderboardService $leaderboard,
         private readonly ScoreRepository $scores,
+        private readonly LeaderboardSnapshotRepository $snapshots,
     ) {
         parent::__construct();
     }
@@ -48,29 +49,24 @@ class ArchiveLeaderboard extends Command
         foreach ($slugs as $slug) {
             $leaderboard = $this->leaderboard->getLeaderboard($slug, 'daily', 10);
 
-            LeaderboardSnapshot::query()->updateOrCreate(
-                [
-                    'game_slug' => $slug,
-                    'period' => 'daily',
-                    'snapshot_date' => $today,
-                ],
-                [
-                    'data' => $leaderboard
-                        ->map(fn (object $entry): array => [
-                            'rank' => (int) $entry->rank,
-                            'user_id' => (int) $entry->user_id,
-                            'score' => (int) $entry->score,
-                            'achieved_at' => $entry->achieved_at,
-                        ])
-                        ->values()
-                        ->all(),
-                ],
+            $this->snapshots->storeDailySnapshot(
+                $slug,
+                $today,
+                $leaderboard
+                    ->map(fn (object $entry): array => [
+                        'rank' => (int) $entry->rank,
+                        'user_id' => (int) $entry->user_id,
+                        'score' => (int) $entry->score,
+                        'achieved_at' => $entry->achieved_at,
+                    ])
+                    ->values()
+                    ->all(),
             );
 
             $this->line("Archived {$slug} leaderboard with {$leaderboard->count()} entrie(s).");
         }
 
-        $deleted = $this->scores->pruneOldSnapshots();
+        $deleted = $this->snapshots->pruneOldSnapshots();
 
         $this->info("Deleted {$deleted} old leaderboard snapshot(s).");
         $this->info('Leaderboard archive complete.');

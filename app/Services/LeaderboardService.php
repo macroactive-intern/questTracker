@@ -6,7 +6,6 @@ use App\Models\Score;
 use App\Repositories\ScoreRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 class LeaderboardService
 {
@@ -79,24 +78,6 @@ class LeaderboardService
         }
     }
 
-    public function submitQuestXp(int $userId, int $xpReward): int
-    {
-        $totalXp = (int) Cache::increment($this->userXpCacheKey($userId), $xpReward);
-
-        Log::channel('xp')->info('Quest XP submitted to leaderboard.', [
-            'user_id' => $userId,
-            'xp_reward' => $xpReward,
-            'total_xp' => $totalXp,
-        ]);
-
-        return $totalXp;
-    }
-
-    public function totalXpForUser(int $userId): int
-    {
-        return (int) Cache::get($this->userXpCacheKey($userId), 0);
-    }
-
     private function cacheKey(string $slug, string $period): string
     {
         return "leaderboard.{$slug}.{$period}";
@@ -105,10 +86,5 @@ class LeaderboardService
     private function lockKey(string $slug, string $period): string
     {
         return "leaderboard-building.{$slug}.{$period}";
-    }
-
-    private function userXpCacheKey(int $userId): string
-    {
-        return "leaderboard:user:{$userId}:xp";
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LeaderboardEntryResource;
 use App\Models\LeaderboardSnapshot;
+use App\Repositories\LeaderboardSnapshotRepository;
 use App\Services\LeaderboardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ class LeaderboardController extends Controller
 {
     public function __construct(
         private readonly LeaderboardService $leaderboard,
+        private readonly LeaderboardSnapshotRepository $snapshots,
     ) {
     }
 
@@ -59,12 +61,8 @@ class LeaderboardController extends Controller
 
     public function history(string $slug): JsonResponse
     {
-        $snapshots = LeaderboardSnapshot::query()
-            ->where('game_slug', $slug)
-            ->where('period', 'daily')
-            ->latest('snapshot_date')
-            ->limit(30)
-            ->get()
+        $snapshots = $this->snapshots
+            ->latestDailySnapshots($slug, 30)
             ->map(fn (LeaderboardSnapshot $snapshot): array => [
                 'snapshot_date' => $snapshot->snapshot_date?->toDateString(),
                 'data' => $snapshot->data,

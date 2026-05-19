@@ -2,7 +2,6 @@
 
 namespace App\Repositories;
 
-use App\Models\LeaderboardSnapshot;
 use App\Models\Score;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -13,9 +12,6 @@ use InvalidArgumentException;
 
 class ScoreRepository
 {
-    private const DAILY_SNAPSHOT_RETENTION_DAYS = 90;
-    private const WEEKLY_SNAPSHOT_RETENTION_DAYS = 730;
-
     /**
      * @param array<string, mixed> $data
      */
@@ -66,21 +62,6 @@ class ScoreRepository
             ->distinct()
             ->orderBy('game_slug')
             ->pluck('game_slug');
-    }
-
-    public function pruneOldSnapshots(): int
-    {
-        $dailyDeleted = LeaderboardSnapshot::query()
-            ->where('period', 'daily')
-            ->whereDate('snapshot_date', '<', Carbon::today()->subDays(self::DAILY_SNAPSHOT_RETENTION_DAYS))
-            ->delete();
-
-        $weeklyDeleted = LeaderboardSnapshot::query()
-            ->where('period', 'weekly')
-            ->whereDate('snapshot_date', '<', Carbon::today()->subDays(self::WEEKLY_SNAPSHOT_RETENTION_DAYS))
-            ->delete();
-
-        return $dailyDeleted + $weeklyDeleted;
     }
 
     private function rankedScoresQuery(string $slug, string $period): QueryBuilder
