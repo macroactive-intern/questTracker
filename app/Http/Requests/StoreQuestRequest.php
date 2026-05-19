@@ -34,6 +34,11 @@ class StoreQuestRequest extends FormRequest
                 'integer',
                 Rule::exists('quests', 'id')->where(fn ($query) => $query->where('user_id', $this->user()?->id)),
             ],
+            'requires_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('quests', 'id')->where(fn ($query) => $query->where('user_id', $this->user()?->id)),
+            ],
         ];
     }
 }

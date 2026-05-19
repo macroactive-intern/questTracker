@@ -30,6 +30,8 @@ interface QuestRepositoryInterface
 
     public function complete(Quest $quest): Quest;
 
+    public function incompleteRequirementFor(Quest $quest): ?Quest;
+
     /**
      * @param array<string, mixed> $data
      */
