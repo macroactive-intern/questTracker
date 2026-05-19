@@ -174,3 +174,23 @@ it('caches user ranks and refreshes them when leaderboard scores change', functi
 
     Carbon::setTestNow();
 });
+
+it('caches null ranks for unranked users without repeating repository lookups', function (): void {
+    Cache::flush();
+
+    $repository = Mockery::mock(ScoreRepository::class);
+    $repository->shouldReceive('userRank')
+        ->once()
+        ->with('arcade', 123, 'alltime')
+        ->andReturn(null);
+
+    $service = new LeaderboardService($repository);
+
+    expect($service->getUserRank('arcade', 123))->toBeNull()
+        ->and($service->getUserRank('arcade', 123))->toBeNull();
+
+    $cachedEntry = Cache::get('leaderboard.arcade.alltime');
+
+    expect(array_key_exists('123', $cachedEntry['ranks']))->toBeTrue()
+        ->and($cachedEntry['ranks']['123'])->toBeNull();
+});
