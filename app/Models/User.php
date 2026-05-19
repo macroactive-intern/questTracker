@@ -53,4 +53,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Quest::class);
     }
+
+    public function scores(): HasMany
+    {
+        return $this->hasMany(Score::class);
+    }
 }
