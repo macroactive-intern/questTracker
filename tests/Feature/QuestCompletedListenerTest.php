@@ -4,7 +4,6 @@ use App\Events\QuestCompleted;
 use App\Listeners\SubmitQuestXpToLeaderboard;
 use App\Models\Quest;
 use App\Models\User;
-use App\Services\LeaderboardService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -12,7 +11,7 @@ use Illuminate\Support\Carbon;
 uses(RefreshDatabase::class);
 
 it('uses a queued listener for quest leaderboard submissions', function (): void {
-    $listener = new SubmitQuestXpToLeaderboard(app(LeaderboardService::class));
+    $listener = app(SubmitQuestXpToLeaderboard::class);
 
     expect($listener)->toBeInstanceOf(ShouldQueue::class);
 });
@@ -28,7 +27,7 @@ it('submits completed quest xp as a leaderboard score', function (): void {
         'xp_reward' => 75,
     ]);
 
-    $listener = new SubmitQuestXpToLeaderboard(app(LeaderboardService::class));
+    $listener = app(SubmitQuestXpToLeaderboard::class);
 
     $listener->handle(new QuestCompleted($quest));
 
@@ -38,6 +37,10 @@ it('submits completed quest xp as a leaderboard score', function (): void {
         'score' => 75,
         'source' => 'quest_completion',
         'achieved_at' => now(),
+    ]);
+    $this->assertDatabaseHas('quest_xp_totals', [
+        'user_id' => $user->id,
+        'total_xp' => 75,
     ]);
 
     Carbon::setTestNow();
@@ -55,7 +58,7 @@ it('uses a quest game slug when one is present on the event model', function ():
     ]);
     $quest->setAttribute('game_slug', 'arcade');
 
-    $listener = new SubmitQuestXpToLeaderboard(app(LeaderboardService::class));
+    $listener = app(SubmitQuestXpToLeaderboard::class);
 
     $listener->handle(new QuestCompleted($quest));
 
@@ -65,6 +68,10 @@ it('uses a quest game slug when one is present on the event model', function ():
         'score' => 125,
         'source' => 'quest_completion',
         'achieved_at' => now(),
+    ]);
+    $this->assertDatabaseHas('quest_xp_totals', [
+        'user_id' => $user->id,
+        'total_xp' => 125,
     ]);
 
     Carbon::setTestNow();
