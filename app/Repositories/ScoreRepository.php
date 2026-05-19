@@ -1,0 +1,125 @@
+<?php
+
+namespace App\Repositories;
+
+use App\Models\LeaderboardSnapshot;
+use App\Models\Score;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+
+class ScoreRepository
+{
+    private const DAILY_SNAPSHOT_RETENTION_DAYS = 90;
+    private const WEEKLY_SNAPSHOT_RETENTION_DAYS = 730;
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function submitScore(array $data): Score
+    {
+        return Score::query()->create($data);
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    public function topPlayers(string $slug, string $period = 'alltime', int $limit = 10): Collection
+    {
+        return DB::query()
+            ->fromSub($this->rankedScoresQuery($slug, $period), 'ranked_scores')
+            ->join('users', 'users.id', '=', 'ranked_scores.user_id')
+            ->select([
+                'ranked_scores.user_id',
+                'users.name',
+                'ranked_scores.score',
+                'ranked_scores.rank',
+            ])
+            ->orderBy('ranked_scores.rank')
+            ->orderBy('ranked_scores.user_id')
+            ->limit($limit)
+            ->get();
+    }
+
+    public function userRank(string $slug, int $userId, string $period = 'alltime'): ?object
+    {
+        return DB::query()
+            ->fromSub($this->rankedScoresQuery($slug, $period), 'ranked_scores')
+            ->join('users', 'users.id', '=', 'ranked_scores.user_id')
+            ->select([
+                'ranked_scores.user_id',
+                'users.name',
+                'ranked_scores.score',
+                'ranked_scores.rank',
+            ])
+            ->where('ranked_scores.user_id', $userId)
+            ->first();
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    public function distinctGameSlugs(): Collection
+    {
+        return Score::query()
+            ->distinct()
+            ->orderBy('game_slug')
+            ->pluck('game_slug');
+    }
+
+    public function pruneOldSnapshots(): int
+    {
+        $dailyDeleted = LeaderboardSnapshot::query()
+            ->where('period', 'daily')
+            ->whereDate('snapshot_date', '<', Carbon::today()->subDays(self::DAILY_SNAPSHOT_RETENTION_DAYS))
+            ->delete();
+
+        $weeklyDeleted = LeaderboardSnapshot::query()
+            ->where('period', 'weekly')
+            ->whereDate('snapshot_date', '<', Carbon::today()->subDays(self::WEEKLY_SNAPSHOT_RETENTION_DAYS))
+            ->delete();
+
+        return $dailyDeleted + $weeklyDeleted;
+    }
+
+    private function rankedScoresQuery(string $slug, string $period): QueryBuilder
+    {
+        return DB::query()
+            ->fromSub($this->groupedScoresQuery($slug, $period), 'player_scores')
+            ->select([
+                'player_scores.user_id',
+                'player_scores.score',
+                DB::raw('RANK() OVER (ORDER BY player_scores.score DESC) as rank'),
+            ]);
+    }
+
+    private function groupedScoresQuery(string $slug, string $period): EloquentBuilder
+    {
+        $query = Score::query()
+            ->where('game_slug', $slug);
+
+        $this->applyPeriodFilter($query, $period);
+
+        return $query
+            ->select('user_id')
+            // MAX(score) keeps each player's personal best for the period, so one
+            // weaker attempt cannot drag down their leaderboard position.
+            ->selectRaw('MAX(score) as score')
+            // GROUP BY user_id is required because users can submit many scores,
+            // but leaderboard rows must represent each user exactly once.
+            ->groupBy('user_id');
+    }
+
+    private function applyPeriodFilter(EloquentBuilder $query, string $period): void
+    {
+        match ($period) {
+            'daily' => $query->whereDate('achieved_at', Carbon::today()),
+            'weekly' => $query->where('achieved_at', '>=', Carbon::now()->subDays(7)),
+            'alltime' => null,
+            default => throw new InvalidArgumentException("Unsupported leaderboard period [{$period}]."),
+        };
+    }
+}
