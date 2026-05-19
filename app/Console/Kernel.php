@@ -19,6 +19,8 @@ class Kernel extends ConsoleKernel
         //
         // In production, add a server cron job that calls this every minute:
         // php artisan schedule:run
-        $schedule->command('leaderboard:archive')->dailyAt('00:05');
+        $schedule->command('leaderboard:archive')
+            ->dailyAt('00:05')
+            ->withoutOverlapping();
     }
 }
