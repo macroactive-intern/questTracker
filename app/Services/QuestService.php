@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Repositories\Contracts\QuestRepositoryInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 
 class QuestService
 {
@@ -87,6 +88,18 @@ class QuestService
         $this->authorizeOwner($user, $parent);
 
         return $this->quests->createSubQuest($parent, $data);
+    }
+
+    /**
+     * @return Collection<int, Quest>
+     *
+     * @throws AuthorizationException
+     */
+    public function getSubQuests(User $user, Quest $parent): Collection
+    {
+        $this->authorizeOwner($user, $parent);
+
+        return $this->quests->getSubQuests($parent);
     }
 
     /**
