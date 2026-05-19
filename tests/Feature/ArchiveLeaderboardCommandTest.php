@@ -127,6 +127,59 @@ it('archives fresh database scores instead of cached leaderboard data', function
     Carbon::setTestNow();
 });
 
+it('archives weekly snapshots on monday runs', function (): void {
+    Carbon::setTestNow('2026-05-18 00:05:00');
+
+    [$weeklyWinner, $dailyWinner, $oldWinner] = User::factory()->count(3)->create();
+
+    $weeklyWinner->scores()->create([
+        'game_slug' => 'arcade',
+        'score' => 900,
+        'source' => 'manual',
+        'achieved_at' => now()->subDays(3),
+    ]);
+
+    $dailyWinner->scores()->create([
+        'game_slug' => 'arcade',
+        'score' => 500,
+        'source' => 'manual',
+        'achieved_at' => now(),
+    ]);
+
+    $oldWinner->scores()->create([
+        'game_slug' => 'arcade',
+        'score' => 1000,
+        'source' => 'manual',
+        'achieved_at' => now()->subDays(8),
+    ]);
+
+    $this->artisan('leaderboard:archive')
+        ->expectsOutput('Archiving daily leaderboard snapshots for 1 game(s).')
+        ->expectsOutput('Archiving weekly leaderboard snapshots for 1 game(s).')
+        ->expectsOutput('Archived arcade weekly leaderboard with 2 entrie(s).')
+        ->assertSuccessful();
+
+    $daily = LeaderboardSnapshot::query()
+        ->where('game_slug', 'arcade')
+        ->where('period', 'daily')
+        ->whereDate('snapshot_date', '2026-05-18')
+        ->firstOrFail();
+
+    $weekly = LeaderboardSnapshot::query()
+        ->where('game_slug', 'arcade')
+        ->where('period', 'weekly')
+        ->whereDate('snapshot_date', '2026-05-18')
+        ->firstOrFail();
+
+    expect($daily->data)->toHaveCount(1)
+        ->and($daily->data[0]['user_id'])->toBe($dailyWinner->id)
+        ->and($weekly->data)->toHaveCount(2)
+        ->and($weekly->data[0]['user_id'])->toBe($weeklyWinner->id)
+        ->and(collect($weekly->data)->pluck('user_id'))->not->toContain($oldWinner->id);
+
+    Carbon::setTestNow();
+});
+
 it('returns early when there are no game slugs to archive', function (): void {
     Carbon::setTestNow('2026-05-20 12:00:00');
 

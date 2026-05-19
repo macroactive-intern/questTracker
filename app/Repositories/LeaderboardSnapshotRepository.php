@@ -18,14 +18,15 @@ class LeaderboardSnapshotRepository
      */
     public function storeDailySnapshot(string $slug, Carbon $snapshotDate, array $data): LeaderboardSnapshot
     {
-        return LeaderboardSnapshot::query()->updateOrCreate(
-            [
-                'game_slug' => $slug,
-                'period' => LeaderboardPeriod::Daily->value,
-                'snapshot_date' => $snapshotDate,
-            ],
-            ['data' => $data],
-        );
+        return $this->storeSnapshot($slug, LeaderboardPeriod::Daily, $snapshotDate, $data);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $data
+     */
+    public function storeWeeklySnapshot(string $slug, Carbon $snapshotDate, array $data): LeaderboardSnapshot
+    {
+        return $this->storeSnapshot($slug, LeaderboardPeriod::Weekly, $snapshotDate, $data);
     }
 
     /**
@@ -67,5 +68,24 @@ class LeaderboardSnapshotRepository
             ->delete();
 
         return $dailyDeleted + $weeklyDeleted;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $data
+     */
+    private function storeSnapshot(
+        string $slug,
+        LeaderboardPeriod $period,
+        Carbon $snapshotDate,
+        array $data,
+    ): LeaderboardSnapshot {
+        return LeaderboardSnapshot::query()->updateOrCreate(
+            [
+                'game_slug' => $slug,
+                'period' => $period->value,
+                'snapshot_date' => $snapshotDate,
+            ],
+            ['data' => $data],
+        );
     }
 }

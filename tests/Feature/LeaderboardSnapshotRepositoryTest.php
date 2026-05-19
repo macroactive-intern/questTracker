@@ -20,10 +20,14 @@ it('stores daily snapshots and fetches the latest daily history', function (): v
         ['rank' => 1, 'user_id' => 11, 'score' => 400],
     ]);
 
+    $repository->storeWeeklySnapshot('arcade', Carbon::today(), [
+        ['rank' => 1, 'user_id' => 12, 'score' => 900],
+    ]);
+
     LeaderboardSnapshot::query()->create([
         'game_slug' => 'arcade',
         'period' => 'weekly',
-        'snapshot_date' => Carbon::today(),
+        'snapshot_date' => Carbon::today()->subWeek(),
         'data' => [['rank' => 1, 'score' => 900]],
     ]);
 
@@ -41,6 +45,13 @@ it('stores daily snapshots and fetches the latest daily history', function (): v
             ['rank' => 1, 'user_id' => 10, 'score' => 500],
         ],
     ]);
+
+    expect(LeaderboardSnapshot::query()
+        ->where('game_slug', 'arcade')
+        ->where('period', 'weekly')
+        ->whereDate('snapshot_date', '2026-05-20')
+        ->firstOrFail()
+        ->data[0]['user_id'])->toBe(12);
 
     Carbon::setTestNow();
 });
