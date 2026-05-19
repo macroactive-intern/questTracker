@@ -72,6 +72,6 @@ class QuestXpCounterService
 
     private function cacheKey(int $userId): string
     {
-        return "leaderboard:user:{$userId}:xp";
+        return "leaderboard.user.{$userId}.xp";
     }
 }

@@ -24,7 +24,7 @@ it('falls back to the database when the xp cache is missing', function (): void 
     $service = app(QuestXpCounterService::class);
 
     $service->submitQuestXp($user->id, 125);
-    Cache::forget("leaderboard:user:{$user->id}:xp");
+    Cache::forget("leaderboard.user.{$user->id}.xp");
 
     expect($service->totalXpForUser($user->id))->toBe(125);
 });
@@ -36,7 +36,7 @@ it('does not treat stale cached xp as the source of truth after submission', fun
     $service = app(QuestXpCounterService::class);
 
     $service->submitQuestXp($user->id, 125);
-    Cache::put("leaderboard:user:{$user->id}:xp", 5, 300);
+    Cache::put("leaderboard.user.{$user->id}.xp", 5, 300);
 
     expect($service->submitQuestXp($user->id, 25))->toBe(150)
         ->and($service->totalXpForUser($user->id))->toBe(150);
