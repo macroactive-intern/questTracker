@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Enums\LeaderboardPeriod;
 use App\Repositories\ScoreRepository;
-use App\Services\LeaderboardService;
 use App\Services\LeaderboardSnapshotService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -26,7 +25,6 @@ class ArchiveLeaderboard extends Command
     protected $description = 'Archive daily leaderboard snapshots and prune old snapshots.';
 
     public function __construct(
-        private readonly LeaderboardService $leaderboard,
         private readonly ScoreRepository $scores,
         private readonly LeaderboardSnapshotService $snapshots,
     ) {
@@ -48,7 +46,7 @@ class ArchiveLeaderboard extends Command
         $this->info("Archiving daily leaderboard snapshots for {$slugs->count()} game(s).");
 
         foreach ($slugs as $slug) {
-            $leaderboard = $this->leaderboard->getLeaderboard($slug, LeaderboardPeriod::Daily->value, 10);
+            $leaderboard = $this->scores->topPlayers($slug, LeaderboardPeriod::Daily->value, 10);
 
             $this->snapshots->storeDailySnapshot(
                 $slug,

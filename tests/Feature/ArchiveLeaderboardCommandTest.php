@@ -4,6 +4,7 @@ use App\Models\LeaderboardSnapshot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 uses(RefreshDatabase::class);
 
@@ -88,6 +89,40 @@ it('updates todays snapshot and prunes snapshots older than ninety days', functi
     $snapshot = LeaderboardSnapshot::query()->firstOrFail();
 
     expect($snapshot->data[0]['score'])->toBe(800);
+
+    Carbon::setTestNow();
+});
+
+it('archives fresh database scores instead of cached leaderboard data', function (): void {
+    Carbon::setTestNow('2026-05-20 12:00:00');
+
+    $user = User::factory()->create();
+    $user->scores()->create([
+        'game_slug' => 'arcade',
+        'score' => 900,
+        'source' => 'manual',
+        'achieved_at' => now(),
+    ]);
+
+    Cache::put('leaderboard.arcade.daily', collect([
+        (object) [
+            'rank' => 1,
+            'user_id' => $user->id,
+            'score' => 100,
+            'achieved_at' => now()->subMinute()->toDateTimeString(),
+        ],
+    ]), 60);
+
+    $this->artisan('leaderboard:archive')
+        ->assertSuccessful();
+
+    $snapshot = LeaderboardSnapshot::query()
+        ->where('game_slug', 'arcade')
+        ->where('period', 'daily')
+        ->whereDate('snapshot_date', now()->toDateString())
+        ->firstOrFail();
+
+    expect($snapshot->data[0]['score'])->toBe(900);
 
     Carbon::setTestNow();
 });
