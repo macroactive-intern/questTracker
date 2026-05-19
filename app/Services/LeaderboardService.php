@@ -64,7 +64,13 @@ class LeaderboardService
         // result, preventing simultaneous hits against the scores table.
         usleep(self::LOCK_WAIT_MICROSECONDS);
 
-        return Cache::get($cacheKey, collect());
+        $cachedLeaderboard = Cache::get($cacheKey);
+
+        if ($cachedLeaderboard !== null) {
+            return $cachedLeaderboard;
+        }
+
+        return $this->scores->topPlayers($slug, $period, $limit);
     }
 
     public function getUserRank(string $slug, int $userId, string $period = 'alltime'): ?object

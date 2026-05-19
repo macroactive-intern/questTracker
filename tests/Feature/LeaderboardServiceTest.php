@@ -89,6 +89,28 @@ it('returns cached data after briefly waiting when another request owns the lock
     }
 });
 
+it('falls back to a direct repository read when a locked rebuild is still not cached', function (): void {
+    Cache::flush();
+
+    $repository = Mockery::mock(ScoreRepository::class);
+    $repository->shouldReceive('topPlayers')
+        ->once()
+        ->with('arcade', 'alltime', 10)
+        ->andReturn(collect([(object) ['score' => 456]]));
+
+    $service = new LeaderboardService($repository);
+    $lock = Cache::lock('leaderboard-building.arcade.alltime', 10);
+    $lock->get();
+
+    try {
+        $leaderboard = $service->getLeaderboard('arcade');
+
+        expect($leaderboard->first()->score)->toBe(456);
+    } finally {
+        $lock->release();
+    }
+});
+
 it('gets user ranks through the score repository and can invalidate one period', function (): void {
     Cache::flush();
     Carbon::setTestNow('2026-05-20 12:00:00');
