@@ -70,3 +70,19 @@ it('requires provided parent quest to belong to the authenticated user', functio
     expect($validator->fails())->toBeTrue()
         ->and($validator->errors()->has('parent_id'))->toBeTrue();
 });
+
+it('requires provided dependency quest to belong to the authenticated user', function (): void {
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $otherUsersQuest = Quest::create([
+        'user_id' => $otherUser->id,
+        'title' => 'Foreign dependency quest',
+    ]);
+
+    $validator = validateUpdateQuestPayload($user, [
+        'requires_id' => $otherUsersQuest->id,
+    ]);
+
+    expect($validator->fails())->toBeTrue()
+        ->and($validator->errors()->has('requires_id'))->toBeTrue();
+});

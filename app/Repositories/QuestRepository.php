@@ -18,7 +18,7 @@ class QuestRepository implements QuestRepositoryInterface
     {
         return Quest::query()
             ->whereBelongsTo($user)
-            ->with('owner')
+            ->with(['owner', 'requiredQuest'])
             ->withCount('subQuests')
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($filters['due_before'] ?? null, fn (Builder $query, mixed $date) => $query->where('due_at', '<=', $date))
@@ -36,7 +36,7 @@ class QuestRepository implements QuestRepositoryInterface
     {
         $quest = Quest::query()
             ->whereBelongsTo($user)
-            ->with(['owner', 'parent'])
+            ->with(['owner', 'parent', 'requiredQuest'])
             ->withCount('subQuests')
             ->find($id);
 
@@ -81,6 +81,18 @@ class QuestRepository implements QuestRepositoryInterface
         return $this->loadDefaultRelations($quest);
     }
 
+    public function incompleteRequirementFor(Quest $quest): ?Quest
+    {
+        if ($quest->requires_id === null) {
+            return null;
+        }
+
+        return Quest::query()
+            ->whereKey($quest->requires_id)
+            ->where('status', '!=', 'completed')
+            ->first();
+    }
+
     /**
      * @param array<string, mixed> $data
      */
@@ -100,7 +112,7 @@ class QuestRepository implements QuestRepositoryInterface
     public function getSubQuests(Quest $parent): Collection
     {
         return $parent->subQuests()
-            ->with('owner')
+            ->with(['owner', 'requiredQuest'])
             ->withCount('subQuests')
             ->get();
     }
@@ -117,14 +129,14 @@ class QuestRepository implements QuestRepositoryInterface
 
     private function loadDefaultRelations(Quest $quest): Quest
     {
-        return $quest->load('owner')->loadCount('subQuests');
+        return $quest->load(['owner', 'requiredQuest'])->loadCount('subQuests');
     }
 
     private function loadSubQuestsRecursively(Quest $quest): void
     {
         $quest->load([
             'subQuests' => fn ($query) => $query
-                ->with('owner')
+                ->with(['owner', 'requiredQuest'])
                 ->withCount('subQuests'),
         ]);
 

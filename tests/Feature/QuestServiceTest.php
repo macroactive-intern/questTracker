@@ -7,6 +7,7 @@ use App\Services\QuestService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -106,6 +107,31 @@ it('does not dispatch quest completed when quest is already completed', function
     expect($completed->status)->toBe('completed');
 
     Event::assertNotDispatched(QuestCompleted::class);
+});
+
+it('does not complete a quest until its required quest is completed', function (): void {
+    Event::fake();
+
+    $owner = User::factory()->create();
+    $requiredQuest = Quest::create([
+        'user_id' => $owner->id,
+        'title' => 'Open the gate',
+    ]);
+    $quest = Quest::create([
+        'user_id' => $owner->id,
+        'title' => 'Enter the keep',
+        'requires_id' => $requiredQuest->id,
+    ]);
+
+    expect(fn () => questService()->completeQuest($owner, $quest))
+        ->toThrow(ValidationException::class);
+
+    Event::assertNotDispatched(QuestCompleted::class);
+
+    questService()->completeQuest($owner, $requiredQuest);
+    $completed = questService()->completeQuest($owner, $quest->refresh());
+
+    expect($completed->status)->toBe('completed');
 });
 
 it('does not complete a quest owned by another user', function (): void {

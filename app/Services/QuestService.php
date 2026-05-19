@@ -9,6 +9,7 @@ use App\Repositories\Contracts\QuestRepositoryInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\ValidationException;
 
 class QuestService
 {
@@ -69,6 +70,16 @@ class QuestService
 
         if ($quest->status === 'completed') {
             return $quest;
+        }
+
+        $incompleteRequirement = $this->quests->incompleteRequirementFor($quest);
+
+        if ($incompleteRequirement !== null) {
+            throw ValidationException::withMessages([
+                'requires_id' => [
+                    "Complete '{$incompleteRequirement->title}' before completing this quest.",
+                ],
+            ]);
         }
 
         $completedQuest = $this->quests->complete($quest);

@@ -24,6 +24,7 @@ class Quest extends Model
         'xp_reward',
         'due_at',
         'parent_id',
+        'requires_id',
     ];
 
     /**
@@ -57,5 +58,15 @@ class Quest extends Model
     public function subQuests(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
+    }
+
+    public function requiredQuest(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'requires_id');
+    }
+
+    public function dependentQuests(): HasMany
+    {
+        return $this->hasMany(self::class, 'requires_id');
     }
 }

@@ -21,8 +21,13 @@ class QuestResource extends JsonResource
             'status' => $this->status,
             'xp_reward' => $this->xp_reward,
             'due_at' => $this->due_at?->toJSON(),
+            'requires_id' => $this->requires_id,
             'sub_quest_count' => $this->whenCounted('subQuests'),
             'owner' => $this->whenLoaded('owner', fn () => (new UserResource($this->owner))->resolve($request)),
+            'required_quest' => $this->whenLoaded(
+                'requiredQuest',
+                fn () => new self($this->requiredQuest),
+            ),
             'sub_quests' => $this->whenLoaded(
                 'subQuests',
                 fn () => QuestResource::collection($this->subQuests)->resolve($request),

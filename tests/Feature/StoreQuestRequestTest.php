@@ -40,6 +40,7 @@ it('validates a store quest payload', function (): void {
         'xp_reward' => 250,
         'due_at' => now()->addDay()->toDateTimeString(),
         'parent_id' => $parent->id,
+        'requires_id' => $parent->id,
     ]);
 
     expect($validator->passes())->toBeTrue();
@@ -60,4 +61,21 @@ it('requires parent quest to belong to the authenticated user', function (): voi
 
     expect($validator->fails())->toBeTrue()
         ->and($validator->errors()->has('parent_id'))->toBeTrue();
+});
+
+it('requires dependency quest to belong to the authenticated user', function (): void {
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $otherUsersQuest = Quest::create([
+        'user_id' => $otherUser->id,
+        'title' => 'Not your dependency',
+    ]);
+
+    $validator = validateStoreQuestPayload($user, [
+        'title' => 'Invalid dependency quest',
+        'requires_id' => $otherUsersQuest->id,
+    ]);
+
+    expect($validator->fails())->toBeTrue()
+        ->and($validator->errors()->has('requires_id'))->toBeTrue();
 });

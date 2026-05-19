@@ -89,6 +89,30 @@ it('shows updates completes and destroys a quest through the service layer', fun
     expect(Quest::count())->toBe(0);
 });
 
+it('returns 422 when completing a quest before its required quest', function (): void {
+    Event::fake();
+
+    $user = User::factory()->create();
+    $requiredQuest = Quest::create([
+        'user_id' => $user->id,
+        'title' => 'Complete me first',
+    ]);
+    $quest = Quest::create([
+        'user_id' => $user->id,
+        'title' => 'Blocked quest',
+        'requires_id' => $requiredQuest->id,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->patchJson("/api/quests/{$quest->id}/complete")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('requires_id');
+
+    Event::assertNotDispatched(QuestCompleted::class);
+    expect($quest->refresh()->status)->toBe('open');
+});
+
 it('returns 404 when accessing another user quest', function (): void {
     $user = User::factory()->create();
     $otherUser = User::factory()->create();
