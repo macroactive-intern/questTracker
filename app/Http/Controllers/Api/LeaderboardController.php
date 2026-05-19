@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\LeaderboardPeriod;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LeaderboardEntryResource;
 use App\Models\LeaderboardSnapshot;
@@ -51,7 +52,7 @@ class LeaderboardController extends Controller
     public function index(Request $request, string $slug): AnonymousResourceCollection
     {
         $data = $request->validate([
-            'period' => ['sometimes', Rule::in(['daily', 'weekly', 'alltime'])],
+            'period' => ['sometimes', Rule::in(LeaderboardPeriod::values())],
         ]);
 
         return LeaderboardEntryResource::collection(
@@ -75,7 +76,7 @@ class LeaderboardController extends Controller
     public function me(Request $request, string $slug): JsonResponse
     {
         $data = $request->validate([
-            'period' => ['sometimes', Rule::in(['daily', 'weekly', 'alltime'])],
+            'period' => ['sometimes', Rule::in(LeaderboardPeriod::values())],
         ]);
 
         $rank = $this->leaderboard->getUserRank(
@@ -95,7 +96,7 @@ class LeaderboardController extends Controller
     public function invalidate(Request $request, string $slug): JsonResponse
     {
         $data = $request->validate([
-            'period' => ['sometimes', Rule::in(['daily', 'weekly', 'alltime'])],
+            'period' => ['sometimes', Rule::in(LeaderboardPeriod::values())],
         ]);
 
         $this->leaderboard->invalidate($slug, $data['period'] ?? null);

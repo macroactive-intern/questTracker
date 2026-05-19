@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Enums\LeaderboardPeriod;
 use App\Models\LeaderboardSnapshot;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
@@ -19,7 +20,7 @@ class LeaderboardSnapshotRepository
         return LeaderboardSnapshot::query()->updateOrCreate(
             [
                 'game_slug' => $slug,
-                'period' => 'daily',
+                'period' => LeaderboardPeriod::Daily->value,
                 'snapshot_date' => $snapshotDate,
             ],
             ['data' => $data],
@@ -33,7 +34,7 @@ class LeaderboardSnapshotRepository
     {
         return LeaderboardSnapshot::query()
             ->where('game_slug', $slug)
-            ->where('period', 'daily')
+            ->where('period', LeaderboardPeriod::Daily->value)
             ->latest('snapshot_date')
             ->limit($limit)
             ->get();
@@ -42,12 +43,12 @@ class LeaderboardSnapshotRepository
     public function pruneOldSnapshots(): int
     {
         $dailyDeleted = LeaderboardSnapshot::query()
-            ->where('period', 'daily')
+            ->where('period', LeaderboardPeriod::Daily->value)
             ->whereDate('snapshot_date', '<', Carbon::today()->subDays(self::DAILY_SNAPSHOT_RETENTION_DAYS))
             ->delete();
 
         $weeklyDeleted = LeaderboardSnapshot::query()
-            ->where('period', 'weekly')
+            ->where('period', LeaderboardPeriod::Weekly->value)
             ->whereDate('snapshot_date', '<', Carbon::today()->subDays(self::WEEKLY_SNAPSHOT_RETENTION_DAYS))
             ->delete();
 

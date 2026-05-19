@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\LeaderboardPeriod;
 use App\Repositories\LeaderboardSnapshotRepository;
 use App\Repositories\ScoreRepository;
 use App\Services\LeaderboardService;
@@ -47,7 +48,7 @@ class ArchiveLeaderboard extends Command
         $this->info("Archiving daily leaderboard snapshots for {$slugs->count()} game(s).");
 
         foreach ($slugs as $slug) {
-            $leaderboard = $this->leaderboard->getLeaderboard($slug, 'daily', 10);
+            $leaderboard = $this->leaderboard->getLeaderboard($slug, LeaderboardPeriod::Daily->value, 10);
 
             $this->snapshots->storeDailySnapshot(
                 $slug,

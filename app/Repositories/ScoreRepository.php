@@ -2,13 +2,13 @@
 
 namespace App\Repositories;
 
+use App\Enums\LeaderboardPeriod;
 use App\Models\Score;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use InvalidArgumentException;
 
 class ScoreRepository
 {
@@ -112,13 +112,12 @@ class ScoreRepository
         string $period,
         string $column = 'achieved_at',
     ): void {
-        match ($period) {
-            'daily' => $query
+        match (LeaderboardPeriod::from($period)) {
+            LeaderboardPeriod::Daily => $query
                 ->where($column, '>=', Carbon::today())
                 ->where($column, '<', Carbon::tomorrow()),
-            'weekly' => $query->where($column, '>=', Carbon::now()->subDays(7)),
-            'alltime' => null,
-            default => throw new InvalidArgumentException("Unsupported leaderboard period [{$period}]."),
+            LeaderboardPeriod::Weekly => $query->where($column, '>=', Carbon::now()->subDays(7)),
+            LeaderboardPeriod::AllTime => null,
         };
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\LeaderboardPeriod;
 use App\Models\Score;
 use App\Repositories\ScoreRepository;
 use Illuminate\Support\Collection;
@@ -73,7 +74,7 @@ class LeaderboardService
 
     public function invalidate(string $slug, ?string $period = null): void
     {
-        foreach ($period === null ? ['daily', 'weekly', 'alltime'] : [$period] as $cachePeriod) {
+        foreach ($period === null ? LeaderboardPeriod::values() : [$period] as $cachePeriod) {
             Cache::forget($this->cacheKey($slug, $cachePeriod));
         }
     }
