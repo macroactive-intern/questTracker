@@ -22,11 +22,11 @@ class QuestResource extends JsonResource
             'xp_reward' => $this->xp_reward,
             'due_at' => $this->due_at?->toJSON(),
             'sub_quest_count' => $this->whenCounted('subQuests'),
-            'owner' => $this->whenLoaded('owner', fn () => [
-                'id' => $this->owner->id,
-                'name' => $this->owner->name,
-            ]),
-            'sub_quests' => QuestResource::collection($this->whenLoaded('subQuests')),
+            'owner' => $this->whenLoaded('owner', fn () => (new UserResource($this->owner))->resolve($request)),
+            'sub_quests' => $this->whenLoaded(
+                'subQuests',
+                fn () => QuestResource::collection($this->subQuests)->resolve($request),
+            ),
             'created_at' => $this->created_at?->toJSON(),
         ];
     }
