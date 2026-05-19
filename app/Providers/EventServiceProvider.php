@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Events\QuestCompleted;
+use App\Listeners\DeliverQuestCompletedWebhook;
 use App\Listeners\SubmitQuestXpToLeaderboard;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
@@ -14,6 +15,7 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         QuestCompleted::class => [
             SubmitQuestXpToLeaderboard::class,
+            DeliverQuestCompletedWebhook::class,
         ],
     ];
 

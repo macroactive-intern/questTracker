@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'quest_completed_webhook' => [
+        'url' => env('QUEST_COMPLETED_WEBHOOK_URL'),
+    ],
+
 ];
