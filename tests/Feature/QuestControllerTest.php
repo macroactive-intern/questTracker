@@ -69,7 +69,7 @@ it('shows updates completes and destroys a quest through the service layer', fun
         ->assertOk()
         ->assertJsonPath('data.title', 'Old title');
 
-    $this->patchJson("/api/quests/{$quest->id}", [
+    $this->putJson("/api/quests/{$quest->id}", [
         'title' => 'New title',
         'status' => 'in_progress',
     ])
@@ -77,7 +77,7 @@ it('shows updates completes and destroys a quest through the service layer', fun
         ->assertJsonPath('data.title', 'New title')
         ->assertJsonPath('data.status', 'in_progress');
 
-    $this->postJson("/api/quests/{$quest->id}/complete")
+    $this->patchJson("/api/quests/{$quest->id}/complete")
         ->assertOk()
         ->assertJsonPath('data.status', 'completed');
 
@@ -100,7 +100,7 @@ it('returns 404 when accessing another user quest', function (): void {
     Sanctum::actingAs($user);
 
     $this->getJson("/api/quests/{$quest->id}")->assertNotFound();
-    $this->patchJson("/api/quests/{$quest->id}", ['title' => 'Nope'])->assertNotFound();
+    $this->putJson("/api/quests/{$quest->id}", ['title' => 'Nope'])->assertNotFound();
     $this->deleteJson("/api/quests/{$quest->id}")->assertNotFound();
 });
 
