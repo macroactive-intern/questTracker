@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    private const DEFAULT_TOKEN_ABILITIES = ['score:submit'];
+
     public function register(RegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -58,7 +60,7 @@ class AuthController extends Controller
     private function tokenResponse(User $user, string $deviceName): array
     {
         return [
-            'token' => $user->createToken($deviceName)->plainTextToken,
+            'token' => $user->createToken($deviceName, self::DEFAULT_TOKEN_ABILITIES)->plainTextToken,
             'user' => new UserResource($user),
         ];
     }

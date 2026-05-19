@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Enums\LeaderboardPeriod;
+use App\Repositories\LeaderboardSnapshotRepository;
 use App\Repositories\ScoreRepository;
-use App\Services\LeaderboardSnapshotService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -26,7 +26,7 @@ class ArchiveLeaderboard extends Command
 
     public function __construct(
         private readonly ScoreRepository $scores,
-        private readonly LeaderboardSnapshotService $snapshots,
+        private readonly LeaderboardSnapshotRepository $snapshots,
     ) {
         parent::__construct();
     }
@@ -41,6 +41,8 @@ class ArchiveLeaderboard extends Command
 
         if ($slugs->isEmpty()) {
             $this->info('No game slugs found. Nothing to archive.');
+
+            return self::SUCCESS;
         }
 
         $this->info("Archiving daily leaderboard snapshots for {$slugs->count()} game(s).");

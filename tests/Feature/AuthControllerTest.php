@@ -24,6 +24,7 @@ it('registers a user and returns a token with user resource', function (): void 
         ->assertJsonMissingPath('user.email');
 
     expect(PersonalAccessToken::count())->toBe(1)
+        ->and(PersonalAccessToken::first()->abilities)->toBe(['score:submit'])
         ->and(User::where('email', 'hadlee@example.com')->exists())->toBeTrue();
 });
 
@@ -48,7 +49,8 @@ it('logs in with hashed password checks and returns a token', function (): void 
         ])
         ->assertJsonPath('user.name', 'Hadlee');
 
-    expect(PersonalAccessToken::count())->toBe(1);
+    expect(PersonalAccessToken::count())->toBe(1)
+        ->and(PersonalAccessToken::first()->abilities)->toBe(['score:submit']);
 });
 
 it('rejects invalid login credentials', function (): void {

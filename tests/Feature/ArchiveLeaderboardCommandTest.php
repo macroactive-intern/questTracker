@@ -126,3 +126,24 @@ it('archives fresh database scores instead of cached leaderboard data', function
 
     Carbon::setTestNow();
 });
+
+it('returns early when there are no game slugs to archive', function (): void {
+    Carbon::setTestNow('2026-05-20 12:00:00');
+
+    LeaderboardSnapshot::query()->create([
+        'game_slug' => 'arcade',
+        'period' => 'daily',
+        'snapshot_date' => now()->subDays(91)->toDateString(),
+        'data' => [],
+    ]);
+
+    $this->artisan('leaderboard:archive')
+        ->expectsOutput('No game slugs found. Nothing to archive.')
+        ->doesntExpectOutput('Archiving daily leaderboard snapshots for 0 game(s).')
+        ->doesntExpectOutput('Leaderboard archive complete.')
+        ->assertSuccessful();
+
+    expect(LeaderboardSnapshot::query()->count())->toBe(1);
+
+    Carbon::setTestNow();
+});

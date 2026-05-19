@@ -5,6 +5,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
@@ -39,6 +40,26 @@ it('requires authentication to submit scores', function (): void {
         'game_slug' => 'arcade',
         'score' => 1234,
     ])->assertUnauthorized();
+});
+
+it('validates manual scores as non-negative integers within php integer bounds', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/scores', [
+            'game_slug' => 'arcade',
+            'score' => 1.9,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('score');
+
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/scores', [
+            'game_slug' => 'arcade',
+            'score' => (string) PHP_INT_MAX.'0',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('score');
 });
 
 it('returns a public top ten leaderboard through resources', function (): void {
@@ -127,19 +148,51 @@ it('returns the last thirty daily snapshots for a leaderboard', function (): voi
     Carbon::setTestNow();
 });
 
-it('allows authenticated users to invalidate leaderboard cache', function (): void {
+it('allows tokens with the leaderboard invalidate ability to invalidate leaderboard cache', function (): void {
     Cache::put('leaderboard.arcade.daily', collect(['stale']), 60);
     Cache::put('leaderboard.arcade.weekly', collect(['stale']), 60);
 
-    $this->actingAs(User::factory()->create(), 'sanctum')
-        ->postJson('/api/leaderboard/arcade/invalidate', [
-            'period' => 'daily',
-        ])
+    Sanctum::actingAs(User::factory()->create(), ['leaderboard:invalidate']);
+
+    $this->postJson('/api/leaderboard/arcade/invalidate', [
+        'period' => 'daily',
+    ])
         ->assertOk()
         ->assertJsonPath('message', 'Leaderboard cache invalidated.');
 
     expect(Cache::has('leaderboard.arcade.daily'))->toBeFalse()
         ->and(Cache::has('leaderboard.arcade.weekly'))->toBeTrue();
+});
+
+it('blocks cache invalidation without the leaderboard invalidate ability', function (): void {
+    Cache::put('leaderboard.arcade.daily', collect(['stale']), 60);
+
+    Sanctum::actingAs(User::factory()->create(), ['score:submit']);
+
+    $this->postJson('/api/leaderboard/arcade/invalidate', [
+        'period' => 'daily',
+    ])->assertForbidden();
+
+    expect(Cache::has('leaderboard.arcade.daily'))->toBeTrue();
+});
+
+it('blocks cache invalidation for normal issued api tokens', function (): void {
+    Cache::put('leaderboard.arcade.daily', collect(['stale']), 60);
+
+    $response = $this->postJson('/api/register', [
+        'name' => 'Hadlee',
+        'email' => 'hadlee@example.com',
+        'password' => 'password123',
+        'device_name' => 'pest',
+    ]);
+
+    $this->withToken($response->json('token'))
+        ->postJson('/api/leaderboard/arcade/invalidate', [
+            'period' => 'daily',
+        ])
+        ->assertForbidden();
+
+    expect(Cache::has('leaderboard.arcade.daily'))->toBeTrue();
 });
 
 it('validates periods on leaderboard endpoints', function (): void {

@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Enums\LeaderboardPeriod;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LeaderboardEntryResource;
+use App\Repositories\LeaderboardSnapshotRepository;
 use App\Services\LeaderboardService;
-use App\Services\LeaderboardSnapshotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -17,7 +17,7 @@ class LeaderboardController extends Controller
 {
     public function __construct(
         private readonly LeaderboardService $leaderboard,
-        private readonly LeaderboardSnapshotService $snapshots,
+        private readonly LeaderboardSnapshotRepository $snapshots,
     ) {
     }
 
@@ -25,7 +25,7 @@ class LeaderboardController extends Controller
     {
         $data = $request->validate([
             'game_slug' => ['required', 'string', 'max:255'],
-            'score' => ['required', 'numeric', 'min:0'],
+            'score' => ['required', 'integer', 'min:0', 'max:'.PHP_INT_MAX],
         ]);
 
         $score = $this->leaderboard->submit([
@@ -88,6 +88,8 @@ class LeaderboardController extends Controller
 
     public function invalidate(Request $request, string $slug): JsonResponse
     {
+        abort_unless($request->user()->tokenCan('leaderboard:invalidate'), Response::HTTP_FORBIDDEN);
+
         $data = $request->validate([
             'period' => ['sometimes', Rule::in(LeaderboardPeriod::values())],
         ]);

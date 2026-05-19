@@ -5,6 +5,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
@@ -139,10 +140,11 @@ it('invalidates leaderboard cache for one requested period', function (): void {
     Cache::put('leaderboard.arcade.weekly', collect(['stale']), 60);
     Cache::put('leaderboard.arcade.alltime', collect(['stale']), 60);
 
-    $this->actingAs(User::factory()->create(), 'sanctum')
-        ->postJson('/api/leaderboard/arcade/invalidate', [
-            'period' => 'weekly',
-        ])
+    Sanctum::actingAs(User::factory()->create(), ['leaderboard:invalidate']);
+
+    $this->postJson('/api/leaderboard/arcade/invalidate', [
+        'period' => 'weekly',
+    ])
         ->assertOk()
         ->assertJsonPath('message', 'Leaderboard cache invalidated.');
 

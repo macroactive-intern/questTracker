@@ -12,36 +12,25 @@ class QuestXpCounterService
 
     public function submitQuestXp(int $userId, int $xpReward): int
     {
-        $totalXp = DB::transaction(function () use ($userId, $xpReward): int {
-            $counter = DB::table('quest_xp_totals')
-                ->where('user_id', $userId)
-                ->lockForUpdate()
-                ->first();
+        $now = now();
 
-            if ($counter === null) {
-                $now = now();
-
-                DB::table('quest_xp_totals')->insert([
+        DB::table('quest_xp_totals')->upsert(
+            [
+                [
                     'user_id' => $userId,
                     'total_xp' => $xpReward,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ]);
+                ],
+            ],
+            ['user_id'],
+            [
+                'total_xp' => DB::raw('total_xp + '.(int) $xpReward),
+                'updated_at' => $now,
+            ],
+        );
 
-                return $xpReward;
-            }
-
-            $totalXp = (int) $counter->total_xp + $xpReward;
-
-            DB::table('quest_xp_totals')
-                ->where('user_id', $userId)
-                ->update([
-                    'total_xp' => $totalXp,
-                    'updated_at' => now(),
-                ]);
-
-            return $totalXp;
-        });
+        $totalXp = $this->totalXpFromDatabase($userId);
 
         Cache::put($this->cacheKey($userId), $totalXp, self::CACHE_TTL_SECONDS);
 
