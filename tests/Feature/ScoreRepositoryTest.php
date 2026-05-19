@@ -21,7 +21,7 @@ it('submits scores and ranks each user by their best score once', function (): v
         'game_slug' => 'speed-run',
         'score' => 100,
         'source' => 'manual',
-        'achieved_at' => now()->subHours(2),
+        'achieved_at' => now(),
     ]);
 
     $repository->submitScore([
@@ -29,7 +29,7 @@ it('submits scores and ranks each user by their best score once', function (): v
         'game_slug' => 'speed-run',
         'score' => 250,
         'source' => 'quest_completion',
-        'achieved_at' => now()->subHour(),
+        'achieved_at' => now()->subHours(2),
     ]);
 
     $repository->submitScore([
@@ -53,7 +53,8 @@ it('submits scores and ranks each user by their best score once', function (): v
     expect($topPlayers)->toHaveCount(3)
         ->and($topPlayers->pluck('user_id')->all())->toBe([$firstUser->id, $secondUser->id, $thirdUser->id])
         ->and($topPlayers->pluck('score')->all())->toBe([250, 200, 200])
-        ->and($topPlayers->pluck('rank')->all())->toBe([1, 2, 2]);
+        ->and($topPlayers->pluck('rank')->all())->toBe([1, 2, 2])
+        ->and($topPlayers->first()->achieved_at)->toBe('2026-05-20 10:00:00');
 
     $rank = $repository->userRank('speed-run', $thirdUser->id);
 

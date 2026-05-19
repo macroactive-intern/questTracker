@@ -31,11 +31,10 @@ class ScoreRepository
     {
         return DB::query()
             ->fromSub($this->rankedScoresQuery($slug, $period), 'ranked_scores')
-            ->join('users', 'users.id', '=', 'ranked_scores.user_id')
             ->select([
                 'ranked_scores.user_id',
-                'users.name',
                 'ranked_scores.score',
+                'ranked_scores.achieved_at',
                 'ranked_scores.rank',
             ])
             ->orderBy('ranked_scores.rank')
@@ -48,11 +47,10 @@ class ScoreRepository
     {
         return DB::query()
             ->fromSub($this->rankedScoresQuery($slug, $period), 'ranked_scores')
-            ->join('users', 'users.id', '=', 'ranked_scores.user_id')
             ->select([
                 'ranked_scores.user_id',
-                'users.name',
                 'ranked_scores.score',
+                'ranked_scores.achieved_at',
                 'ranked_scores.rank',
             ])
             ->where('ranked_scores.user_id', $userId)
@@ -92,18 +90,19 @@ class ScoreRepository
             ->select([
                 'player_scores.user_id',
                 'player_scores.score',
+                'player_scores.achieved_at',
                 DB::raw('RANK() OVER (ORDER BY player_scores.score DESC) as rank'),
             ]);
     }
 
     private function groupedScoresQuery(string $slug, string $period): EloquentBuilder
     {
-        $query = Score::query()
+        $bestScores = Score::query()
             ->where('game_slug', $slug);
 
-        $this->applyPeriodFilter($query, $period);
+        $this->applyPeriodFilter($bestScores, $period);
 
-        return $query
+        $bestScores = $bestScores
             ->select('user_id')
             // MAX(score) keeps each player's personal best for the period, so one
             // weaker attempt cannot drag down their leaderboard position.
@@ -111,13 +110,30 @@ class ScoreRepository
             // GROUP BY user_id is required because users can submit many scores,
             // but leaderboard rows must represent each user exactly once.
             ->groupBy('user_id');
+
+        $query = Score::query()
+            ->joinSub($bestScores, 'best_scores', function ($join): void {
+                $join->on('scores.user_id', '=', 'best_scores.user_id')
+                    ->on('scores.score', '=', 'best_scores.score');
+            })
+            ->where('scores.game_slug', $slug);
+
+        $this->applyPeriodFilter($query, $period, 'scores.achieved_at');
+
+        return $query
+            ->select('best_scores.user_id', 'best_scores.score')
+            ->selectRaw('MAX(scores.achieved_at) as achieved_at')
+            ->groupBy('best_scores.user_id', 'best_scores.score');
     }
 
-    private function applyPeriodFilter(EloquentBuilder $query, string $period): void
-    {
+    private function applyPeriodFilter(
+        EloquentBuilder $query,
+        string $period,
+        string $column = 'achieved_at',
+    ): void {
         match ($period) {
-            'daily' => $query->whereDate('achieved_at', Carbon::today()),
-            'weekly' => $query->where('achieved_at', '>=', Carbon::now()->subDays(7)),
+            'daily' => $query->whereDate($column, Carbon::today()),
+            'weekly' => $query->where($column, '>=', Carbon::now()->subDays(7)),
             'alltime' => null,
             default => throw new InvalidArgumentException("Unsupported leaderboard period [{$period}]."),
         };
