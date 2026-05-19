@@ -37,21 +37,31 @@ class LeaderboardService
     public function getLeaderboard(string $slug, string $period = 'alltime', int $limit = 10): Collection
     {
         $cacheKey = $this->cacheKey($slug, $period);
-        $cachedLeaderboard = Cache::get($cacheKey);
+        $cachedEntry = $this->normalizeCacheEntry(Cache::get($cacheKey));
 
-        if ($cachedLeaderboard !== null) {
-            return $cachedLeaderboard;
+        if ($cachedEntry['leaderboard'] !== null) {
+            return $cachedEntry['leaderboard'];
         }
 
         $lock = Cache::lock($this->lockKey($slug, $period), self::LOCK_TTL_SECONDS);
 
         if ($lock->get()) {
             try {
-                return Cache::remember(
+                $cachedEntry = $this->normalizeCacheEntry(Cache::get($cacheKey));
+
+                if ($cachedEntry['leaderboard'] !== null) {
+                    return $cachedEntry['leaderboard'];
+                }
+
+                $leaderboard = $this->scores->topPlayers($slug, $period, $limit);
+
+                Cache::put(
                     $cacheKey,
+                    $this->cacheEntry($leaderboard, $cachedEntry['ranks']),
                     self::CACHE_TTL_SECONDS,
-                    fn () => $this->scores->topPlayers($slug, $period, $limit),
                 );
+
+                return $leaderboard;
             } finally {
                 $lock->release();
             }
@@ -64,10 +74,10 @@ class LeaderboardService
         // result, preventing simultaneous hits against the scores table.
         usleep(self::LOCK_WAIT_MICROSECONDS);
 
-        $cachedLeaderboard = Cache::get($cacheKey);
+        $cachedEntry = $this->normalizeCacheEntry(Cache::get($cacheKey));
 
-        if ($cachedLeaderboard !== null) {
-            return $cachedLeaderboard;
+        if ($cachedEntry['leaderboard'] !== null) {
+            return $cachedEntry['leaderboard'];
         }
 
         return $this->scores->topPlayers($slug, $period, $limit);
@@ -75,18 +85,26 @@ class LeaderboardService
 
     public function getUserRank(string $slug, int $userId, string $period = 'alltime'): ?object
     {
-        return Cache::remember(
-            $this->rankCacheKey($slug, $period, $userId),
-            self::CACHE_TTL_SECONDS,
-            fn () => $this->scores->userRank($slug, $userId, $period),
-        );
+        $cacheKey = $this->cacheKey($slug, $period);
+        $cachedEntry = $this->normalizeCacheEntry(Cache::get($cacheKey));
+        $rankKey = (string) $userId;
+
+        if (array_key_exists($rankKey, $cachedEntry['ranks'])) {
+            return $cachedEntry['ranks'][$rankKey];
+        }
+
+        $rank = $this->scores->userRank($slug, $userId, $period);
+        $cachedEntry['ranks'][$rankKey] = $rank;
+
+        Cache::put($cacheKey, $cachedEntry, self::CACHE_TTL_SECONDS);
+
+        return $rank;
     }
 
     public function invalidate(string $slug, ?string $period = null): void
     {
         foreach ($period === null ? LeaderboardPeriod::values() : [$period] as $cachePeriod) {
             Cache::forget($this->cacheKey($slug, $cachePeriod));
-            $this->bumpRankCacheVersion($slug, $cachePeriod);
         }
     }
 
@@ -100,23 +118,38 @@ class LeaderboardService
         return "leaderboard-building.{$slug}.{$period}";
     }
 
-    private function rankCacheKey(string $slug, string $period, int $userId): string
+    /**
+     * @return array{leaderboard: Collection<int, object>|null, ranks: array<string, object|null>}
+     */
+    private function normalizeCacheEntry(mixed $cached): array
     {
-        return "leaderboard-rank.{$slug}.{$period}.v{$this->rankCacheVersion($slug, $period)}.{$userId}";
+        if ($cached instanceof Collection) {
+            return $this->cacheEntry($cached);
+        }
+
+        if (is_array($cached)) {
+            $leaderboard = $cached['leaderboard'] ?? null;
+            $ranks = $cached['ranks'] ?? [];
+
+            return $this->cacheEntry(
+                $leaderboard instanceof Collection ? $leaderboard : null,
+                is_array($ranks) ? $ranks : [],
+            );
+        }
+
+        return $this->cacheEntry();
     }
 
-    private function rankCacheVersion(string $slug, string $period): int
+    /**
+     * @param Collection<int, object>|null $leaderboard
+     * @param array<string, object|null> $ranks
+     * @return array{leaderboard: Collection<int, object>|null, ranks: array<string, object|null>}
+     */
+    private function cacheEntry(?Collection $leaderboard = null, array $ranks = []): array
     {
-        return (int) Cache::get($this->rankCacheVersionKey($slug, $period), 0);
-    }
-
-    private function bumpRankCacheVersion(string $slug, string $period): void
-    {
-        Cache::increment($this->rankCacheVersionKey($slug, $period));
-    }
-
-    private function rankCacheVersionKey(string $slug, string $period): string
-    {
-        return "leaderboard-rank-version.{$slug}.{$period}";
+        return [
+            'leaderboard' => $leaderboard,
+            'ranks' => $ranks,
+        ];
     }
 }

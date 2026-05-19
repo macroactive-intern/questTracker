@@ -134,8 +134,8 @@ it('gets user ranks through the score repository and can invalidate one period',
     expect($service->getUserRank('arcade', $user->id)->rank)->toBe(1)
         ->and(Cache::has('leaderboard.arcade.daily'))->toBeFalse()
         ->and(Cache::has('leaderboard.arcade.weekly'))->toBeTrue()
-        ->and(Cache::get('leaderboard-rank-version.arcade.daily'))->toBe(2)
-        ->and(Cache::get('leaderboard-rank-version.arcade.weekly'))->toBe(1);
+        ->and(Cache::get('leaderboard-rank-version.arcade.daily'))->toBeNull()
+        ->and(Cache::get('leaderboard-rank-version.arcade.weekly'))->toBeNull();
 
     Carbon::setTestNow();
 });
@@ -157,6 +157,10 @@ it('caches user ranks and refreshes them when leaderboard scores change', functi
     ]);
 
     expect($service->getUserRank('arcade', $player->id)->rank)->toBe(1);
+
+    $cachedEntry = Cache::get('leaderboard.arcade.alltime');
+
+    expect($cachedEntry['ranks'][(string) $player->id]->rank)->toBe(1);
 
     $service->submit([
         'user_id' => $leader->id,
