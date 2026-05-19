@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Enums\LeaderboardPeriod;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LeaderboardEntryResource;
-use App\Models\LeaderboardSnapshot;
 use App\Repositories\LeaderboardSnapshotRepository;
 use App\Services\LeaderboardService;
 use Illuminate\Http\JsonResponse;
@@ -62,15 +61,9 @@ class LeaderboardController extends Controller
 
     public function history(string $slug): JsonResponse
     {
-        $snapshots = $this->snapshots
-            ->latestDailySnapshots($slug, 30)
-            ->map(fn (LeaderboardSnapshot $snapshot): array => [
-                'snapshot_date' => $snapshot->snapshot_date?->toDateString(),
-                'data' => $snapshot->data,
-                'created_at' => $snapshot->created_at?->toJSON(),
-            ]);
-
-        return response()->json(['data' => $snapshots]);
+        return response()->json([
+            'data' => $this->snapshots->latestDailySnapshotData($slug, 30),
+        ]);
     }
 
     public function me(Request $request, string $slug): JsonResponse

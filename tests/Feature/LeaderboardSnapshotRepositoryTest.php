@@ -33,6 +33,15 @@ it('stores daily snapshots and fetches the latest daily history', function (): v
         ->and($history->first()->snapshot_date->toDateString())->toBe('2026-05-20')
         ->and($history->first()->data[0]['score'])->toBe(500);
 
+    $historyData = $repository->latestDailySnapshotData('arcade', 30);
+
+    expect($historyData->first())->toMatchArray([
+        'snapshot_date' => '2026-05-20',
+        'data' => [
+            ['rank' => 1, 'user_id' => 10, 'score' => 500],
+        ],
+    ]);
+
     Carbon::setTestNow();
 });
 

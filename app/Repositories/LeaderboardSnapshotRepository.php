@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Enums\LeaderboardPeriod;
 use App\Models\LeaderboardSnapshot;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 
 class LeaderboardSnapshotRepository
@@ -38,6 +39,19 @@ class LeaderboardSnapshotRepository
             ->latest('snapshot_date')
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * @return Collection<int, array{snapshot_date: string|null, data: mixed, created_at: string|null}>
+     */
+    public function latestDailySnapshotData(string $slug, int $limit = 30): Collection
+    {
+        return $this->latestDailySnapshots($slug, $limit)
+            ->map(fn (LeaderboardSnapshot $snapshot): array => [
+                'snapshot_date' => $snapshot->snapshot_date?->toDateString(),
+                'data' => $snapshot->data,
+                'created_at' => $snapshot->created_at?->toJSON(),
+            ]);
     }
 
     public function pruneOldSnapshots(): int
