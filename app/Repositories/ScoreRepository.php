@@ -132,7 +132,9 @@ class ScoreRepository
         string $column = 'achieved_at',
     ): void {
         match ($period) {
-            'daily' => $query->whereDate($column, Carbon::today()),
+            'daily' => $query
+                ->where($column, '>=', Carbon::today())
+                ->where($column, '<', Carbon::tomorrow()),
             'weekly' => $query->where($column, '>=', Carbon::now()->subDays(7)),
             'alltime' => null,
             default => throw new InvalidArgumentException("Unsupported leaderboard period [{$period}]."),
