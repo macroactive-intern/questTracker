@@ -7,7 +7,7 @@ use App\Models\User;
 use App\Services\LeaderboardService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -17,12 +17,8 @@ it('uses a queued listener for quest leaderboard submissions', function (): void
     expect($listener)->toBeInstanceOf(ShouldQueue::class);
 });
 
-it('logs completed quest xp to the xp log', function (): void {
-    $logPath = storage_path('logs/xp.log');
-
-    if (file_exists($logPath)) {
-        unlink($logPath);
-    }
+it('submits completed quest xp as a leaderboard score', function (): void {
+    Carbon::setTestNow('2026-05-20 12:00:00');
 
     $user = User::factory()->create();
     $quest = Quest::create([
@@ -36,19 +32,40 @@ it('logs completed quest xp to the xp log', function (): void {
 
     $listener->handle(new QuestCompleted($quest));
 
-    expect(file_get_contents($logPath))
-        ->toContain('"user_id":'.$user->id)
-        ->toContain('"xp_reward":75')
-        ->toContain('"total_xp":75');
+    $this->assertDatabaseHas('scores', [
+        'user_id' => $user->id,
+        'game_slug' => 'quests',
+        'score' => 75,
+        'source' => 'quest_completion',
+        'achieved_at' => now(),
+    ]);
+
+    Carbon::setTestNow();
 });
 
-it('tracks cumulative leaderboard xp per user', function (): void {
-    Cache::flush();
+it('uses a quest game slug when one is present on the event model', function (): void {
+    Carbon::setTestNow('2026-05-20 12:00:00');
 
-    $leaderboard = app(LeaderboardService::class);
-    $userId = User::factory()->create()->id;
+    $user = User::factory()->create();
+    $quest = Quest::create([
+        'user_id' => $user->id,
+        'title' => 'Complete the trial',
+        'status' => 'completed',
+        'xp_reward' => 125,
+    ]);
+    $quest->setAttribute('game_slug', 'arcade');
 
-    expect($leaderboard->submitQuestXp($userId, 75))->toBe(75)
-        ->and($leaderboard->submitQuestXp($userId, 25))->toBe(100)
-        ->and($leaderboard->totalXpForUser($userId))->toBe(100);
+    $listener = new SubmitQuestXpToLeaderboard(app(LeaderboardService::class));
+
+    $listener->handle(new QuestCompleted($quest));
+
+    $this->assertDatabaseHas('scores', [
+        'user_id' => $user->id,
+        'game_slug' => 'arcade',
+        'score' => 125,
+        'source' => 'quest_completion',
+        'achieved_at' => now(),
+    ]);
+
+    Carbon::setTestNow();
 });

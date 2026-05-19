@@ -8,6 +8,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 
 class SubmitQuestXpToLeaderboard implements ShouldQueue
 {
+    private const DEFAULT_GAME_SLUG = 'quests';
+
     public function __construct(
         private readonly LeaderboardService $leaderboard,
     ) {
@@ -15,9 +17,12 @@ class SubmitQuestXpToLeaderboard implements ShouldQueue
 
     public function handle(QuestCompleted $event): void
     {
-        $this->leaderboard->submitQuestXp(
-            userId: $event->quest->user_id,
-            xpReward: $event->quest->xp_reward,
-        );
+        $this->leaderboard->submit([
+            'user_id' => $event->quest->user_id,
+            'game_slug' => $event->quest->game_slug ?? self::DEFAULT_GAME_SLUG,
+            'score' => $event->quest->xp_reward,
+            'source' => 'quest_completion',
+            'achieved_at' => now(),
+        ]);
     }
 }
