@@ -107,15 +107,12 @@ class LeaderboardService
 
     private function rankCacheVersion(string $slug, string $period): int
     {
-        return (int) Cache::get($this->rankCacheVersionKey($slug, $period), 1);
+        return (int) Cache::get($this->rankCacheVersionKey($slug, $period), 0);
     }
 
     private function bumpRankCacheVersion(string $slug, string $period): void
     {
-        Cache::forever(
-            $this->rankCacheVersionKey($slug, $period),
-            $this->rankCacheVersion($slug, $period) + 1,
-        );
+        Cache::increment($this->rankCacheVersionKey($slug, $period));
     }
 
     private function rankCacheVersionKey(string $slug, string $period): string
