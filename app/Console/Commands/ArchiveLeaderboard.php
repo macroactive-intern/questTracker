@@ -3,9 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Enums\LeaderboardPeriod;
-use App\Repositories\LeaderboardSnapshotRepository;
 use App\Repositories\ScoreRepository;
 use App\Services\LeaderboardService;
+use App\Services\LeaderboardSnapshotService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -28,7 +28,7 @@ class ArchiveLeaderboard extends Command
     public function __construct(
         private readonly LeaderboardService $leaderboard,
         private readonly ScoreRepository $scores,
-        private readonly LeaderboardSnapshotRepository $snapshots,
+        private readonly LeaderboardSnapshotService $snapshots,
     ) {
         parent::__construct();
     }

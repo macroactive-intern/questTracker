@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Enums\LeaderboardPeriod;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LeaderboardEntryResource;
-use App\Repositories\LeaderboardSnapshotRepository;
 use App\Services\LeaderboardService;
+use App\Services\LeaderboardSnapshotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -17,7 +17,7 @@ class LeaderboardController extends Controller
 {
     public function __construct(
         private readonly LeaderboardService $leaderboard,
-        private readonly LeaderboardSnapshotRepository $snapshots,
+        private readonly LeaderboardSnapshotService $snapshots,
     ) {
     }
 
