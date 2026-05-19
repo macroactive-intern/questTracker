@@ -14,7 +14,7 @@ interface QuestRepositoryInterface
      */
     public function paginateForUser(User $user, array $filters): LengthAwarePaginator;
 
-    public function findForUser(User $user, int $id): ?Quest;
+    public function findForUser(User $user, int $id, int $maxDepth = 5): ?Quest;
 
     /**
      * @param array<string, mixed> $data

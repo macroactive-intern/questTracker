@@ -128,6 +128,41 @@ it('loads a single user quest with nested subquests recursively', function (): v
         ->and($quest->subQuests->first()->subQuests)->toHaveCount(1);
 });
 
+it('limits recursive subquest loading depth for single quest lookups', function (): void {
+    $user = User::factory()->create();
+
+    $parent = Quest::create([
+        'user_id' => $user->id,
+        'title' => 'Depth zero',
+    ]);
+
+    $child = Quest::create([
+        'user_id' => $user->id,
+        'parent_id' => $parent->id,
+        'title' => 'Depth one',
+    ]);
+
+    $grandchild = Quest::create([
+        'user_id' => $user->id,
+        'parent_id' => $child->id,
+        'title' => 'Depth two',
+    ]);
+
+    Quest::create([
+        'user_id' => $user->id,
+        'parent_id' => $grandchild->id,
+        'title' => 'Depth three',
+    ]);
+
+    $quest = questRepository()->findForUser($user, $parent->id, maxDepth: 2);
+    $loadedGrandchild = $quest?->subQuests->first()?->subQuests->first();
+
+    expect($quest)->not->toBeNull()
+        ->and($quest->subQuests)->toHaveCount(1)
+        ->and($quest->subQuests->first()->subQuests)->toHaveCount(1)
+        ->and($loadedGrandchild?->relationLoaded('subQuests'))->toBeFalse();
+});
+
 it('creates updates completes deletes and returns subquests through the repository', function (): void {
     $user = User::factory()->create();
 

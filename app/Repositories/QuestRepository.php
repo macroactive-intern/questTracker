@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Collection;
 
 class QuestRepository implements QuestRepositoryInterface
 {
+    private const DEFAULT_SUB_QUEST_DEPTH = 5;
+
     /**
      * @param array<string, mixed> $filters
      */
@@ -32,7 +34,7 @@ class QuestRepository implements QuestRepositoryInterface
             ->paginate(15);
     }
 
-    public function findForUser(User $user, int $id): ?Quest
+    public function findForUser(User $user, int $id, int $maxDepth = self::DEFAULT_SUB_QUEST_DEPTH): ?Quest
     {
         $quest = Quest::query()
             ->whereBelongsTo($user)
@@ -44,7 +46,7 @@ class QuestRepository implements QuestRepositoryInterface
             return null;
         }
 
-        $this->loadSubQuestsRecursively($quest);
+        $this->loadSubQuestsRecursively($quest, max(0, $maxDepth));
 
         return $quest;
     }
@@ -132,14 +134,20 @@ class QuestRepository implements QuestRepositoryInterface
         return $quest->load(['owner', 'requiredQuest'])->loadCount('subQuests');
     }
 
-    private function loadSubQuestsRecursively(Quest $quest): void
+    private function loadSubQuestsRecursively(Quest $quest, int $maxDepth, int $currentDepth = 0): void
     {
+        if ($currentDepth >= $maxDepth) {
+            return;
+        }
+
         $quest->load([
             'subQuests' => fn ($query) => $query
                 ->with(['owner', 'requiredQuest'])
                 ->withCount('subQuests'),
         ]);
 
-        $quest->subQuests->each(fn (Quest $subQuest) => $this->loadSubQuestsRecursively($subQuest));
+        $quest->subQuests->each(
+            fn (Quest $subQuest) => $this->loadSubQuestsRecursively($subQuest, $maxDepth, $currentDepth + 1),
+        );
     }
 }
