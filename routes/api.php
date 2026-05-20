@@ -19,7 +19,7 @@ Route::controller(LeaderboardController::class)
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/scores', [LeaderboardController::class, 'submit']);
+    Route::post('/leaderboard/{slug}/scores', [LeaderboardController::class, 'submit']);
     Route::get('/leaderboard/{slug}/me', [LeaderboardController::class, 'me']);
     Route::post('/leaderboard/{slug}/invalidate', [LeaderboardController::class, 'invalidate']);
 

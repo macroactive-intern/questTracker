@@ -21,16 +21,15 @@ class LeaderboardController extends Controller
     ) {
     }
 
-    public function submit(Request $request): JsonResponse
+    public function submit(Request $request, string $slug): JsonResponse
     {
         $data = $request->validate([
-            'game_slug' => ['required', 'string', 'max:255'],
             'score' => ['required', 'integer', 'min:0', 'max:'.PHP_INT_MAX],
         ]);
 
         $score = $this->leaderboard->submit([
-            ...$data,
             'user_id' => $request->user()->id,
+            'game_slug' => $slug,
             'score' => (int) $data['score'],
             'source' => 'manual',
             'achieved_at' => now(),

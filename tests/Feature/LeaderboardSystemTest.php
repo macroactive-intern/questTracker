@@ -22,8 +22,7 @@ it('accepts authenticated manual score submissions', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user, 'sanctum')
-        ->postJson('/api/scores', [
-            'game_slug' => 'arcade',
+        ->postJson('/api/leaderboard/arcade/scores', [
             'score' => 1250,
         ])
         ->assertCreated()

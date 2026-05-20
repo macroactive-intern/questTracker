@@ -15,8 +15,7 @@ it('allows authenticated users to submit manual scores', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user, 'sanctum')
-        ->postJson('/api/scores', [
-            'game_slug' => 'arcade',
+        ->postJson('/api/leaderboard/arcade/scores', [
             'score' => 1234,
         ])
         ->assertCreated()
@@ -36,8 +35,7 @@ it('allows authenticated users to submit manual scores', function (): void {
 });
 
 it('requires authentication to submit scores', function (): void {
-    $this->postJson('/api/scores', [
-        'game_slug' => 'arcade',
+    $this->postJson('/api/leaderboard/arcade/scores', [
         'score' => 1234,
     ])->assertUnauthorized();
 });
@@ -46,20 +44,41 @@ it('validates manual scores as non-negative integers within php integer bounds',
     $user = User::factory()->create();
 
     $this->actingAs($user, 'sanctum')
-        ->postJson('/api/scores', [
-            'game_slug' => 'arcade',
+        ->postJson('/api/leaderboard/arcade/scores', [
             'score' => 1.9,
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('score');
 
     $this->actingAs($user, 'sanctum')
-        ->postJson('/api/scores', [
-            'game_slug' => 'arcade',
+        ->postJson('/api/leaderboard/arcade/scores', [
             'score' => (string) PHP_INT_MAX.'0',
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('score');
+});
+
+it('does not accept game slugs from manual score request bodies', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/leaderboard/arcade/scores', [
+            'game_slug' => 'maze',
+            'score' => 777,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.game_slug', 'arcade');
+
+    $this->assertDatabaseHas('scores', [
+        'user_id' => $user->id,
+        'game_slug' => 'arcade',
+        'score' => 777,
+    ]);
+    $this->assertDatabaseMissing('scores', [
+        'user_id' => $user->id,
+        'game_slug' => 'maze',
+        'score' => 777,
+    ]);
 });
 
 it('returns a public top ten leaderboard through resources', function (): void {
