@@ -6,6 +6,7 @@ use App\Events\QuestCompleted;
 use App\Services\LeaderboardService;
 use App\Services\QuestXpCounterService;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\DB;
 
 class SubmitQuestXpToLeaderboard implements ShouldQueue
 {
@@ -19,17 +20,20 @@ class SubmitQuestXpToLeaderboard implements ShouldQueue
 
     public function handle(QuestCompleted $event): void
     {
-        $this->xpCounter->submitQuestXp(
-            $event->quest->user_id,
-            $event->quest->xp_reward,
-        );
+        $userId = $event->quest->user_id;
+        $xpReward = $event->quest->xp_reward;
+        $gameSlug = $event->quest->game_slug ?? self::DEFAULT_GAME_SLUG;
 
-        $this->leaderboard->submit([
-            'user_id' => $event->quest->user_id,
-            'game_slug' => $event->quest->game_slug ?? self::DEFAULT_GAME_SLUG,
-            'score' => $event->quest->xp_reward,
-            'source' => 'quest_completion',
-            'achieved_at' => now(),
-        ]);
+        DB::transaction(function () use ($userId, $xpReward, $gameSlug): void {
+            $this->xpCounter->submitQuestXp($userId, $xpReward);
+
+            $this->leaderboard->submit([
+                'user_id' => $userId,
+                'game_slug' => $gameSlug,
+                'score' => $xpReward,
+                'source' => 'quest_completion',
+                'achieved_at' => now(),
+            ]);
+        });
     }
 }

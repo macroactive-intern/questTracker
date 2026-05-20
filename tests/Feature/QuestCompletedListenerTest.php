@@ -4,6 +4,7 @@ use App\Events\QuestCompleted;
 use App\Listeners\SubmitQuestXpToLeaderboard;
 use App\Models\Quest;
 use App\Models\User;
+use App\Repositories\ScoreRepository;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -44,6 +45,27 @@ it('submits completed quest xp as a leaderboard score', function (): void {
     ]);
 
     Carbon::setTestNow();
+});
+
+it('rolls back the xp counter when the score insert fails', function (): void {
+    $user = User::factory()->create();
+    $quest = Quest::create([
+        'user_id' => $user->id,
+        'title' => 'Complete the trial',
+        'status' => 'completed',
+        'xp_reward' => 75,
+    ]);
+
+    $mockRepo = Mockery::mock(ScoreRepository::class);
+    $mockRepo->shouldReceive('submitScore')->andThrow(new RuntimeException('DB failure'));
+    app()->instance(ScoreRepository::class, $mockRepo);
+
+    $listener = app(SubmitQuestXpToLeaderboard::class);
+
+    expect(fn () => $listener->handle(new QuestCompleted($quest)))
+        ->toThrow(RuntimeException::class);
+
+    $this->assertDatabaseMissing('quest_xp_totals', ['user_id' => $user->id]);
 });
 
 it('uses a quest game slug when one is present on the event model', function (): void {
