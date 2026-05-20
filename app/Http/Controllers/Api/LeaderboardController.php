@@ -54,7 +54,7 @@ class LeaderboardController extends Controller
         ]);
 
         return LeaderboardEntryResource::collection(
-            $this->leaderboard->getLeaderboard($slug, $data['period'] ?? 'alltime', 10),
+            $this->leaderboard->getLeaderboard($slug, $data['period'] ?? 'alltime'),
         );
     }
 

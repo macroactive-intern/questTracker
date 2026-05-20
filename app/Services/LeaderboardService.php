@@ -34,7 +34,7 @@ class LeaderboardService
     /**
      * @return Collection<int, object>
      */
-    public function getLeaderboard(string $slug, string $period = 'alltime', int $limit = 10): Collection
+    public function getLeaderboard(string $slug, string $period = 'alltime'): Collection
     {
         $cacheKey = $this->cacheKey($slug, $period);
         $cached = Cache::get($cacheKey);
@@ -53,7 +53,7 @@ class LeaderboardService
                     return $cached;
                 }
 
-                $leaderboard = $this->scores->topPlayers($slug, $period, $limit);
+                $leaderboard = $this->scores->topPlayers($slug, $period, 10);
                 Cache::put($cacheKey, $leaderboard, self::CACHE_TTL_SECONDS);
 
                 return $leaderboard;
@@ -75,7 +75,7 @@ class LeaderboardService
             return $cached;
         }
 
-        return $this->scores->topPlayers($slug, $period, $limit);
+        return $this->scores->topPlayers($slug, $period, 10);
     }
 
     public function getUserRank(string $slug, int $userId, string $period = 'alltime'): ?object
